@@ -1,11 +1,11 @@
 
-#Voxel Godbox.
+# Voxel Godbox.
 
 Some stuff thrown together to generate a quick voxel world and play with it. Kind of paint 3d.
 
-##Building
+## Building
 
-###Linux
+### Linux
 
 Make sure SDL2 is installed. Use your package manager. Run the build script.
 
@@ -15,17 +15,17 @@ This is all. Now run with
 
     ./behavior
 
-##Windows
+## Windows
 
 Requires more work, but is not hard. Find the equivalent commands for every line in the build script. 
 These are technically just 4 lines. Most of the commands are trivial, I just don't feel like it now.
 
-##Faster building
+## Faster building
 
 I put all external libraries into one object file. You don't have to recompile that every time.
 Just run ./build without any arguments if you only want to recompile code in /src.
 
-##Ideas 
+## Ideas 
 
  - Living paint 3d. Draw houses. Generate world. Make creatures. 
  - Add drones that build buildings. 
