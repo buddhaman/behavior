@@ -1,6 +1,12 @@
 
+#include <thread>
+
 #include <SDL2/SDL.h>
 #include "external_libs.h"
+
+// TODO: Move to external? 
+#define FNL_IMPL
+#include "perlin.c"
 
 #include "util.h"
 
@@ -23,6 +29,29 @@
 #include "camera.cpp"
 #include "behavior.cpp"
 #include "world.cpp"
+
+void
+ChunkMeshGeneratorLoop(World *world, int y_min, int y_max)
+{
+    for(;;)
+    {
+        int dirty_count = 0;
+        for(int y_chunk = y_min; y_chunk < y_max; y_chunk++)
+        for(int x_chunk = 0; x_chunk < world->x_chunks; x_chunk++)
+        {
+            Chunk *chunk = ChunkAt(world, x_chunk, y_chunk);
+            if(chunk->is_dirty)
+            {
+                dirty_count++;
+                GenerateChunkMesh(world, chunk);
+                chunk->is_dirty = false;
+                chunk->is_mesh_dirty = true;
+                DebugOut("just generated chunk mesh");
+            }
+        }
+        std::this_thread::yield();
+    }
+}
 
 int
 main(int argc, char **argv)
@@ -78,8 +107,8 @@ main(int argc, char **argv)
 
     io.Fonts->AddFontFromFileTTF("assets/DejaVuSansMono.ttf", 16.0f);
     
-    // lighter color : HexToVec4(0xcae9f6ff);
-    Vec4 clear_color = V4(0.45f, 0.55f, 0.60f, 1.00f);
+    //Vec4 clear_color = HexToVec4(0xcae9f6ff);
+    Vec4 clear_color = V4(53.0f/100.0f, 80.0f/100.0f, 99.0f/100.0f, 1.0f);
 
     glEnable(GL_BLEND);
     glEnable(GL_CULL_FACE);
@@ -95,10 +124,13 @@ main(int argc, char **argv)
     Memory_Arena *arena = CreateMemoryArena(1024L*1024L*512L);
 
     Shader *chunk_shader = CreateShaderProgram(arena, 
-            "assets/chunk_shader.vert", "assets/chunk_shader.frag");
+            "assets/chunk_shader.vert", "assets/solid.frag");
 
     Shader *model_shader = CreateShaderProgram(arena,
-            "assets/solid_shader.vert", "assets/chunk_shader.frag");
+            "assets/solid.vert", "assets/solid.frag");
+
+    Shader *flat_shader = CreateShaderProgram(arena,
+            "assets/solid.vert", "assets/flat.frag");
 
     Input *input = PushZeroStruct(arena, Input);
 
@@ -106,16 +138,20 @@ main(int argc, char **argv)
     InitWorld(arena, world, 8, 8);
 
     Camera3 *cam = PushZeroStruct(arena, Camera3);
-    cam->pos = V3(-10, -10, 10);
     cam->phi = -M_PI/4.0f;
     cam->theta = M_PI/2.0f;
     cam->radius = 10.0f;
 
-    cam->look_at = V3(world->x_size/2, world->y_size/2, 16.0f);
+    cam->look_at = V3(world->x_size/2, world->y_size/2, world->mid_level+10.0f);
 
     Mesh *mesh = CreateMesh3D(arena, 10000, 10000);
+    Mesh *line_mesh = CreateMesh3D(arena, 10000, 10000);
 
-    int sim_speed = 1;
+    AddAgent(world, V3(40, 40, 40));
+
+    int first_y_half = world->y_chunks/2;
+    std::thread render_thread0(ChunkMeshGeneratorLoop, world, 0, first_y_half);
+    std::thread render_thread1(ChunkMeshGeneratorLoop, world, first_y_half, world->y_chunks);
 
     bool done = false;
     while (!done)
@@ -240,19 +276,17 @@ main(int argc, char **argv)
 
         UpdateCamera3(cam, screen_width, screen_height, input);
 
-        int dirty_count = 0;
-        for(int x_chunk = 0; x_chunk < world->x_chunks; x_chunk++)
-        for(int y_chunk = 0; y_chunk < world->y_chunks; y_chunk++)
+        for(int chunk_x = 0; chunk_x < world->x_chunks; chunk_x++)
+        for(int chunk_y = 0; chunk_y < world->x_chunks; chunk_y++)
         {
-            Chunk *chunk = ChunkAt(world, x_chunk, y_chunk);
-            if(chunk->is_dirty)
+            Chunk *chunk = ChunkAt(world, chunk_x, chunk_y);
+
+            if(chunk->is_mesh_dirty)
             {
-                dirty_count++;
-                GenerateChunkMesh(world, chunk);
-                chunk->is_dirty = false;
+                chunk->is_mesh_dirty = false;
+                BufferMesh(chunk->mesh, GL_STATIC_DRAW);
             }
         }
-        DebugOut("Dirty %d", dirty_count);
 
         // Render chunks
         local_persist R32 time = 0.0f;
@@ -265,14 +299,17 @@ main(int argc, char **argv)
         for(int chunk_y = 0; chunk_y < world->x_chunks; chunk_y++)
         {
             Chunk *chunk = ChunkAt(world, chunk_x, chunk_y);
+
             Mat4 model_matrix = M4Translation(V3(chunk->x_offset, chunk->y_offset, 0));
             glUniformMatrix4fv(chunk_shader->model_loc, 1, GL_FALSE, (const R32*)model_matrix.m);
+
             Render(chunk->mesh, GL_TRIANGLES);
         }
 
         // Render normal models
         
         ClearMesh(mesh);
+        ClearMesh(line_mesh);
 
         Ray pick_ray = GetPickRay(cam, input->mouse_pos_normalized.x, -input->mouse_pos_normalized.y);
 
@@ -281,45 +318,97 @@ main(int argc, char **argv)
         Vec3 normal;
         if(IntersectBlock(world, pick_ray, &hit, &intersect, &normal))
         {
-            PushCubeLine(mesh, V3(40, 40, 40), intersect,
-                    V3(0,0,1), 0.1f, 0xff0000ff);
             R32 outline = 0.01f;
-            PushCube(mesh, V3(hit.x-outline, hit.y-outline, hit.z-outline), 
-                    V3(1+outline*2,
-                        1+outline*2,
-                        1+outline*2),
+            PushCube(mesh, 
+                    V3(hit.x-outline, hit.y-outline, hit.z-outline), 
+                    V3(1+outline*2, 1+outline*2, 1+outline*2), 
                     0xff22ffff);
-            if(IsDown(input, Action_LeftMouse))
+            if(IsJustReleased(input, Action_LeftMouse))
             {
-                SetBlockAt(world, hit.x, hit.y, hit.z, 0);
+                //SetBlockSphereAt(world, hit.x, hit.y, hit.z, 2, 0xff0000ff);
+                int width = 12;
+                int height = 12;
+                int depth = 60;
+                U32 color = 0xaaaaaaff;
+                GenerateXWall(world, hit.x, hit.y, hit.y+height, hit.z, hit.z+depth, color);
+                GenerateYWall(world, hit.y, hit.x+1, hit.x+width, hit.z, hit.z+depth, color);
+                GenerateXWall(world, hit.x+width-1, hit.y, hit.y+height, hit.z, hit.z+depth, color);
+                GenerateYWall(world, hit.y+height-1, hit.x, hit.x+width, hit.z, hit.z+depth, color);
             }
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
             ImGui::SetTooltip("(%d %d %d)", hit.x, hit.y, hit.z);
             ImGui::PopStyleVar();
         }
 
+        for(int agent_idx = 0;
+                agent_idx < world->agents.size;
+                agent_idx++)
+        {
+            Entity *agent = world->agents[agent_idx];
+            PushLineSphere(line_mesh, agent->pos, agent->radius, 0xff22ffff);
+        }
+
         BufferMesh(mesh, GL_DYNAMIC_DRAW);
+        BufferMesh(line_mesh, GL_DYNAMIC_DRAW);
 
         glUseProgram(model_shader->program);
 
         glUniformMatrix4fv(model_shader->transform_loc, 1, GL_FALSE, (const R32 *)cam->transform.m);
-
         Mat4 model_matrix = M4Identity();
         glUniformMatrix4fv(model_shader->model_loc, 1, GL_FALSE, (const R32*)model_matrix.m);
+
         Render(mesh, GL_TRIANGLES);
+
+        glUseProgram(flat_shader->program);
+
+        glUniformMatrix4fv(flat_shader->transform_loc, 1, GL_FALSE, (const R32 *)cam->transform.m);
+        model_matrix = M4Identity();
+        glUniformMatrix4fv(flat_shader->model_loc, 1, GL_FALSE, (const R32*)model_matrix.m);
+
+        Render(line_mesh, GL_LINES);
 
         ImGui::Begin("Info");
         ImGui::Text("Game arena used: %zu / %zu kilobytes.", arena->used/1024, arena->size/1024);
+#if 0
         if(ImGui::Button("1x")) {sim_speed = 1;} ImGui::SameLine();
         if(ImGui::Button("10x")) {sim_speed = 10;} ImGui::SameLine();
         if(ImGui::Button("50x")) {sim_speed = 50;} ImGui::SameLine();
         ImGui::Text("%dx", sim_speed);
+#endif
+        ImGui::DragFloat("Scale", &world->scale, 0.1f, 0.0f, 10.0f, "%.2f", 1.0f);
+        ImGui::DragFloat("Magnitude", &world->magnitude, 1.0f, 0.0f, 100.0, "%.2f", 1.0f);
+        ImGui::DragFloat("Water level", &world->water_level, 1.0f, 0.0f, 100.0, "%.2f", 1.0f);
+        ImGui::DragFloat("Mid level", &world->mid_level, 1.0f, 0.0f, 100.0, "%.2f", 1.0f);
+        const char * const noise_type_names[4]{
+            "Open simplex 2", 
+            "Open simplex 2s", 
+            "cellular", 
+            "perlin", 
+        };
+        const fnl_noise_type noise_types[]{
+            FNL_NOISE_OPENSIMPLEX2,
+            FNL_NOISE_OPENSIMPLEX2S,
+            FNL_NOISE_CELLULAR,
+            FNL_NOISE_PERLIN,
+        };
+        static int current_noise = world->noise_state.noise_type;
 
-        ImGui::Text("Pos" V3Fmt, V3Args(cam->pos));
-        ImGui::Text("Mouse diff: " V2Fmt, V2Args(input->mouse_diff));
-        //ImGui::Text("n_vertices = %d", mesh->n_vertices);
-        //ImGui::Text("n_indices = %d", mesh->n_indices);
+        ImGui::Text("Advanced noise options");
+        ImGui::Separator();
+        ImGui::Combo("Noise type", 
+                &current_noise, 
+                noise_type_names,
+                4);
+        ImGui::InputInt("Seed", &world->noise_state.seed);
+        ImGui::DragFloat("Frequency", &world->noise_state.frequency, 0.001f, 0.0f, 1.0f);
+        ImGui::InputInt("Octaves", &world->noise_state.octaves);
+        ImGui::DragFloat("Lacunarity", &world->noise_state.lacunarity, 0.02f, 0.0f, 10.0f);
 
+        world->noise_state.noise_type = noise_types[current_noise];
+        if(ImGui::Button("Generate new world"))
+        {
+            GenerateChunks(world);
+        }
         ImGui::End();
 
         // Render Dear ImGui frame

@@ -1,9 +1,9 @@
 
 #define CHUNK_UNIT 256
 
-#define CHUNKSIZE_X 24
-#define CHUNKSIZE_Y 24
-#define CHUNKSIZE_Z 24
+#define CHUNKSIZE_X 16
+#define CHUNKSIZE_Y 16
+#define CHUNKSIZE_Z 128
 
 #define BlockAt(array, x, y, z) (array)[(z)*CHUNKSIZE_X*CHUNKSIZE_Y+(y)*CHUNKSIZE_X+(x)]
 
@@ -14,7 +14,8 @@
 
 struct Chunk
 {
-    bool is_dirty;
+    volatile bool is_dirty;
+    volatile bool is_mesh_dirty;
     int x_offset;
     int y_offset;
     int z_offset;

@@ -90,6 +90,12 @@ MinR32(int n, int *idx, ...)
     return min;
 }
 
+internal inline R32 Min(R32 x, R32 y) { return x < y ? x : y; }
+internal inline I32 Min(I32 x, I32 y) { return x < y ? x : y; }
+
+internal inline R32 Max(R32 x, R32 y) { return x > y ? x : y; }
+internal inline I32 Max(I32 x, I32 y) { return x > y ? x : y; }
+
 R32 
 GetSmallestPositiveNumber(int n, int *idx, ...)
 {

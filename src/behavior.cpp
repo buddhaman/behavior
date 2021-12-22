@@ -2,7 +2,7 @@
 internal inline Behavior_Node_Instance *
 GetBehaviorNodeInstance(Entity *agent, Behavior_Node *node)
 {
-    return &agent->behavior->nodes[node->idx];
+    return &agent->brain->behavior->nodes[node->idx];
 }
 
 internal inline Behavior *
@@ -80,7 +80,7 @@ ClearBehaviorState(Entity *agent, Behavior_Node *node)
 internal inline Behavior_State
 UpdateBehaviorNodeInstance(World *world, Entity *agent, Behavior_Node *node)
 {
-    Behavior_Node_Instance *instance = &agent->behavior->nodes[node->idx];
+    Behavior_Node_Instance *instance = &agent->brain->behavior->nodes[node->idx];
     Behavior_State result = BehaviorState_Failed;
     switch(node->type)
     {
@@ -110,7 +110,7 @@ UpdateBehaviorNodeInstance(World *world, Entity *agent, Behavior_Node *node)
                 child_idx++)
         {
             Behavior_Node *child = node->children[child_idx];
-            Behavior_Node_Instance *child_instance = &agent->behavior->nodes[child->idx];
+            Behavior_Node_Instance *child_instance = &agent->brain->behavior->nodes[child->idx];
             if(child_instance->state!=BehaviorState_Succeeded)
             {
                 Behavior_State child_state = UpdateBehaviorNodeInstance(world, agent, child);
@@ -150,7 +150,7 @@ UpdateBehaviorNodeInstance(World *world, Entity *agent, Behavior_Node *node)
 internal inline void
 UpdateBehaviorTree(World *world, Entity *agent)
 {
-    Behavior_Node *node = agent->behavior->tree->root;
+    Behavior_Node *node = agent->brain->behavior->tree->root;
     UpdateBehaviorNodeInstance(world, agent, node);
 }
 
@@ -174,4 +174,59 @@ CreateBehaviorTreeInstanceMemoryPool(World *world, Behavior_Tree *tree)
     tree->instance_pool = PushMemoryPool(world->arena, 2048, instance_size);
 }
 
+bool
+ImGuiTreeNodeColored(char *id, U32 color, ImGuiTreeNodeFlags flags, char *format, ...)
+{
+    ImGui::PushStyleColor(ImGuiCol_Text, color);
+
+    va_list args;
+    va_start(args, format);
+    bool result = ImGui::TreeNodeExV(id, flags, format, args);
+    va_end(args);
+
+    ImGui::PopStyleColor();
+    return result;
+}
+
+void
+ImGuiBehaviorNode(World *world, Entity *agent, Behavior_Node *node)
+{
+    Behavior_Node_Instance *instance = &agent->brain->behavior->nodes[node->idx];
+    Behavior_State state = instance->state;
+    U32 color = state==BehaviorState_Updating ? IM_COL32(100, 100, 255, 255) : 
+        state==BehaviorState_Failed ? IM_COL32(255, 50, 50, 255) : IM_COL32(100, 255, 100, 255);
+    char id[32];
+    sprintf(id, "bn%p", node);
+    if(node->type==BehaviorNodeType_Leaf)
+    {
+        if(ImGuiTreeNodeColored(id, 
+                    color, 
+                    ImGuiTreeNodeFlags_Leaf, 
+                    "%s: %s", 
+                    BehaviorTypeToString(node->behavior->type),
+                    BehaviorStateToString(instance->state)))
+        {
+            ImGui::TreePop();
+        }
+    }
+    else
+    {
+        if(ImGuiTreeNodeColored(id, 
+                    color, 
+                    0, 
+                    "%s: %s",
+                    node->type==BehaviorNodeType_Selector ? "selector" : "sequence",
+                    BehaviorStateToString(instance->state)))
+        {
+            for(int child_idx = 0;
+                    child_idx < node->children.size;
+                    child_idx++)
+            {
+                Behavior_Node *child = node->children[child_idx];
+                ImGuiBehaviorNode(world, agent, child);
+            }
+            ImGui::TreePop();
+        }
+    }
+}
 

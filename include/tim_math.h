@@ -701,7 +701,7 @@ M4Perspective(float vertical_field_of_view_in_deg, float aspect_ratio, float nea
 	return M4(
 		 f / ar,           0,                0,                0,
 		 0,                f,                0,                0,
-		 0,                0,               (fd+nd)/(nd-fd),  (2*fdVnd)/(nd-fd),
+		 0,                0,               (fd+nd)/(nd-fd),  (2*fd+nd)/(nd-fd),
 		 0,                0,               -1,                0
 	);
 }

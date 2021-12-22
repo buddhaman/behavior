@@ -2,7 +2,6 @@
 internal inline bool
 IsObfuscating(World *world, int x, int y, int z)
 {
-#if 1
     int chunk_x = x/CHUNKSIZE_X;
     int chunk_y = y/CHUNKSIZE_Y;
     if(z < 0 || z >= CHUNKSIZE_Z || 
@@ -15,9 +14,6 @@ IsObfuscating(World *world, int x, int y, int z)
     int x_in_chunk = x-chunk->x_offset;
     int y_in_chunk = y-chunk->y_offset;
     return BlockAt(chunk->blocks, x_in_chunk, y_in_chunk, z)!=0;
-#else
-    return true;
-#endif
 }
 
 void
@@ -74,17 +70,24 @@ GenerateChunkMesh(World *world, Chunk *chunk)
             }
         }
     }
-
-    BufferMesh(chunk->mesh, GL_STATIC_DRAW);
 }
 
 void
 GenerateChunk(World *world, Chunk *chunk)
 {
+    size_t n_blocks = CHUNKSIZE_X*CHUNKSIZE_Y*CHUNKSIZE_Z;
+    memset(chunk->blocks, 0, n_blocks*sizeof(U32));
+
+    U32 water_color = 0xd4f1f9ff;
+    U32 sand_color = 0xc2b280ff;
+
     for(int y = 0; y < CHUNKSIZE_Y; y++)
     for(int x = 0; x < CHUNKSIZE_X; x++)
     {
-        int height = RandomI32(14, 16);
+        R32 xx = world->scale*(chunk->x_offset+x);
+        R32 yy = world->scale*(chunk->y_offset+y);
+        int height = world->mid_level+world->magnitude*fnlGetNoise2D(&world->noise_state, xx, yy);
+        height = Min(height, CHUNKSIZE_Z);
         for(int z = 0; z < height; z++)
         {
             U32 color = 0U;
@@ -96,7 +99,11 @@ GenerateChunk(World *world, Chunk *chunk)
                         RandomI32(160, 200),
                         255);
             } 
-            else 
+            else if(z < world->water_level+1)
+            {
+                color = sand_color;
+            }
+            else
             {
                 color = COL32(
                         RandomI32(0, 100),
@@ -106,7 +113,15 @@ GenerateChunk(World *world, Chunk *chunk)
             }
             BlockAt(chunk->blocks, x, y, z) = color;
         }
+        if(height > 0 && height < world->water_level)
+        {
+            for(int z = height; z < world->water_level; z++)
+            {
+                BlockAt(chunk->blocks, x, y, z) = water_color;
+            }
+        }
     }
+    chunk->is_dirty = true;
 }
 
 Chunk *
@@ -118,8 +133,7 @@ CreateChunk(World *world, int x_idx, int y_idx)
     size_t n_blocks = CHUNKSIZE_X * CHUNKSIZE_Y * CHUNKSIZE_Z;
     chunk->blocks = PushZeroArray(world->arena, U32, n_blocks);
     // Create mesh: TODO: calculate exact number of required vertices.
-    chunk->mesh = CreateChunkMesh(world->arena, 100000, 100000);
-    GenerateChunk(world, chunk);
+    chunk->mesh = CreateChunkMesh(world->arena, 150000, 150000);
     return chunk;
 }
 

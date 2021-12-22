@@ -314,7 +314,7 @@ CreateChunkMesh(Memory_Arena *arena, size_t max_vertices, size_t max_indices)
     return mesh;
 }
 
-// Normal 3d mesh
+// Regular 3d mesh
 
 void
 PushVertex(Mesh *mesh, Vec3 pos, Vec3 normal, U32 color)
@@ -415,6 +415,42 @@ PushCubeLine(Mesh *mesh,
     // Up Down
     PushQuad(mesh, p000, p001, p101, p100, -up2, color);
     PushQuad(mesh, p110, p111, p011, p010, up2, color);
+}
+
+void
+PushLineSphere(Mesh *mesh, Vec3 center, R32 radius, U32 color, int n_xdivs = 12, int n_ydivs = 10)
+{
+    int idx = mesh->n_vertices;
+    for(int ydiv = 0; ydiv < n_ydivs; ydiv++)
+    {
+        R32 part = ((R32)ydiv+1)/((R32)n_ydivs+1);
+        R32 phi = M_PI*part;
+        R32 cp = cosf(phi);
+        R32 sp = sinf(phi);
+        for(int xdiv = 0; xdiv < n_xdivs; xdiv++)
+        {
+            R32 theta = 2*M_PI*xdiv/n_xdivs;
+            R32 ct = cosf(theta);
+            R32 st = sinf(theta);
+            Vec3 dir = V3(ct*sp, st*sp, cp);
+            PushVertex(mesh, center+(radius*dir), dir, color);
+            if(xdiv>0)
+            {
+                PushIndex(mesh, idx + xdiv + ydiv*n_xdivs-1);
+                PushIndex(mesh, idx + xdiv + ydiv*n_xdivs);
+            }
+            else
+            {
+                PushIndex(mesh, idx+n_xdivs*ydiv);
+                PushIndex(mesh, idx+n_xdivs+ydiv*n_xdivs-1);
+            }
+            if(ydiv > 0)
+            {
+                PushIndex(mesh, idx + xdiv + (ydiv-1)*n_xdivs);
+                PushIndex(mesh, idx + xdiv + ydiv*n_xdivs);
+            }
+        }
+    }
 }
 
 Mesh *

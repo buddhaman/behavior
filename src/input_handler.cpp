@@ -2,7 +2,8 @@
 bool
 IsDown(Input *input, Input_Action action)
 {
-    return input->is_down[action];
+    bool is_disabled = (IsMouseType(action) && input->is_mouse_disabled);
+    return !is_disabled && input->is_down[action];
 }
 
 bool

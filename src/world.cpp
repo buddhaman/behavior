@@ -40,25 +40,73 @@ GetBlockAtNoCheck(World *world, int x, int y, int z)
 internal inline void
 SetBlockAt(World *world, int x, int y, int z, U32 block)
 {
-    Assert(IsBlockInBounds(world, x, y, z));
-    int chunk_x = x/CHUNKSIZE_X;
-    int chunk_y = y/CHUNKSIZE_Y;
-    Chunk *chunk = ChunkAt(world, chunk_x, chunk_y);
-    int x_in_chunk = x-chunk->x_offset;
-    int y_in_chunk = y-chunk->y_offset;
-    BlockAt(chunk->blocks, x_in_chunk, y_in_chunk, z) = block;
-    chunk->is_dirty = true;
-    if(x_in_chunk == 0 && chunk_x > 0) 
-        { ChunkAt(world, chunk_x-1, chunk_y)->is_dirty = true; }
-    if(y_in_chunk == 0 && chunk_y > 0) 
-        { ChunkAt(world, chunk_x, chunk_y-1)->is_dirty = true; }
-    if(x_in_chunk == (CHUNKSIZE_X-1) && chunk_x < world->x_chunks-1) 
-        { ChunkAt(world, chunk_x+1, chunk_y)->is_dirty = true; }
-    if(y_in_chunk == (CHUNKSIZE_Y-1) && chunk_y < world->y_chunks-1) 
-        { ChunkAt(world, chunk_x, chunk_y+1)->is_dirty = true; }
+    if(IsBlockInBounds(world, x, y, z))
+    {
+        int chunk_x = x/CHUNKSIZE_X;
+        int chunk_y = y/CHUNKSIZE_Y;
+        Chunk *chunk = ChunkAt(world, chunk_x, chunk_y);
+        int x_in_chunk = x-chunk->x_offset;
+        int y_in_chunk = y-chunk->y_offset;
+        BlockAt(chunk->blocks, x_in_chunk, y_in_chunk, z) = block;
+        chunk->is_dirty = true;
+        if(x_in_chunk == 0 && chunk_x > 0) 
+            { ChunkAt(world, chunk_x-1, chunk_y)->is_dirty = true; }
+        if(y_in_chunk == 0 && chunk_y > 0) 
+            { ChunkAt(world, chunk_x, chunk_y-1)->is_dirty = true; }
+        if(x_in_chunk == (CHUNKSIZE_X-1) && chunk_x < world->x_chunks-1) 
+            { ChunkAt(world, chunk_x+1, chunk_y)->is_dirty = true; }
+        if(y_in_chunk == (CHUNKSIZE_Y-1) && chunk_y < world->y_chunks-1) 
+            { ChunkAt(world, chunk_x, chunk_y+1)->is_dirty = true; }
+    }
 }
 
-// Returns the axis or -1 on failure
+internal inline void
+SetBlockSphereAt(World *world, int cx, int cy, int cz, R32 radius, U32 block)
+{
+    int startX = Max((I32)floor(cx - radius), 0);
+    int startY = Max((I32)floor(cy - radius), 0);
+    int startZ = Max((I32)floor(cz - radius), 0);
+    int endX = Min((I32)ceil(cx + radius), (I32)world->x_size);
+    int endY = Min((I32)ceil(cy + radius), (I32)world->y_size);
+    int endZ = Min((I32)ceil(cz + radius), (I32)world->z_size);
+
+    R32 radius2 = radius*radius;
+    for(int x = startX; x < endX; x++)
+    for(int y = startY; y < endY; y++)
+    for(int z = startZ; z < endZ; z++)
+    {
+        R32 x_diff = x - cx;
+        R32 y_diff = y - cy;
+        R32 z_diff = z - cz;
+        R32 r2 = x_diff*x_diff + y_diff*y_diff + z_diff*z_diff;
+        if(r2 < radius2)
+        {
+            SetBlockAt(world, x, y, z, block);
+        }
+    }
+}
+
+internal inline void
+GenerateYWall(World *world, int y, int from_x, int to_x, int from_z, int to_z, U32 block)
+{
+    for(int z = from_z; z < to_z; z++)
+    for(int x = from_x; x < to_x; x++)
+    {
+        SetBlockAt(world, x, y, z, block);
+    }
+}
+
+internal inline void
+GenerateXWall(World *world, int x, int from_y, int to_y, int from_z, int to_z, U32 block)
+{
+    for(int z = from_z; z < to_z; z++)
+    for(int y = from_y; y < to_y; y++)
+    {
+        SetBlockAt(world, x, y, z, block);
+    }
+}
+
+// Returns the axis. Returns -1 on failure
 int 
 MoveToNextBoundingPlane(World *world, Ray *ray, R32 epsilon=0.001f)
 {
@@ -186,27 +234,81 @@ IntersectBlock(World *world, Ray ray, Vec3_I16 *result, Vec3 *intersect, Vec3 *n
     return false;
 }
 
-void
-InitWorld(Memory_Arena *arena, World *world, int x_chunks, int y_chunks)
+// World generation.
+
+Entity *
+AddEntity(World *world, Vec3 pos, Entity_Type type)
 {
-    world->arena = arena;
-    world->x_chunks = x_chunks;
-    world->y_chunks = y_chunks;
-    world->chunks = PushZeroArray(arena, Chunk*, world->x_chunks*world->y_chunks);
+    Entity *entity = PoolAlloc(world->entity_pool, Entity);
+    *entity = {};
+
+    entity->pos = pos;
+    entity->type = type;
+
+    return entity;
+}
+
+Entity *
+AddAgent(World *world, Vec3 pos)
+{
+    Entity *agent = AddEntity(world, pos, Entity_Agent);
+    world->agents.PushBack(agent);
+
+    agent->radius = 1.5f;
+
+    return agent;
+}
+
+void
+GenerateChunks(World *world)
+{
     for(int x = 0; x < world->x_chunks; x++)
     for(int y = 0; y < world->y_chunks; y++)
     {
-        ChunkAt(world, x, y) = CreateChunk(world, x, y);
+        Chunk *chunk = ChunkAt(world, x, y);
+        GenerateChunk(world, chunk);
     }
+}
+
+#if 0
+void
+GenerateAllChunkMeshes(World *world)
+{
     for(int x = 0; x < world->x_chunks; x++)
     for(int y = 0; y < world->y_chunks; y++)
     {
         Chunk *chunk = ChunkAt(world, x, y);
         GenerateChunkMesh(world, chunk);
     }
+}
+#endif
+
+void
+InitWorld(Memory_Arena *arena, World *world, int x_chunks, int y_chunks)
+{
+    world->noise_state = fnlCreateState();
+    world->magnitude = 8;
+    world->water_level = 32;
+    world->mid_level = 32;
+    world->scale = 5.0f;
+
+    world->arena = arena;
+    world->x_chunks = x_chunks;
+    world->y_chunks = y_chunks;
+    world->chunks = PushZeroArray(arena, Chunk*, world->x_chunks*world->y_chunks);
+
     world->x_size = x_chunks*CHUNKSIZE_X;
     world->y_size = y_chunks*CHUNKSIZE_Y;
     world->z_size = CHUNKSIZE_Z;
+
+    for(int x = 0; x < world->x_chunks; x++)
+    for(int y = 0; y < world->y_chunks; y++)
+    {
+        ChunkAt(world, x, y) = CreateChunk(world, x, y);
+    }
+
+    GenerateChunks(world);
+    //GenerateAllChunkMeshes(world);
 
     world->entity_pool = PushMemoryPool(arena, 2048, sizeof(Entity));
     world->brain_pool = PushMemoryPool(arena, 2048, sizeof(Brain));
@@ -215,63 +317,8 @@ InitWorld(Memory_Arena *arena, World *world, int x_chunks, int y_chunks)
     world->behavior_table = CreateDArray<Behavior>(arena, 128);
     world->behavior_nodes = CreateDArray<Behavior_Node>(arena, 256);
     world->behavior_trees = CreateDArray<Behavior_Tree>(arena, 256);
+
 }
 
 // Imgui debug rendering
-
-bool
-ImGuiTreeNodeColored(char *id, U32 color, ImGuiTreeNodeFlags flags, char *format, ...)
-{
-    ImGui::PushStyleColor(ImGuiCol_Text, color);
-
-    va_list args;
-    va_start(args, format);
-    bool result = ImGui::TreeNodeExV(id, flags, format, args);
-    va_end(args);
-
-    ImGui::PopStyleColor();
-    return result;
-}
-
-void
-ImGuiBehaviorNode(World *world, Entity *agent, Behavior_Node *node)
-{
-    Behavior_Node_Instance *instance = &agent->behavior->nodes[node->idx];
-    Behavior_State state = instance->state;
-    U32 color = state==BehaviorState_Updating ? IM_COL32(100, 100, 255, 255) : 
-        state==BehaviorState_Failed ? IM_COL32(255, 50, 50, 255) : IM_COL32(100, 255, 100, 255);
-    char id[32];
-    sprintf(id, "bn%p", node);
-    if(node->type==BehaviorNodeType_Leaf)
-    {
-        if(ImGuiTreeNodeColored(id, 
-                    color, 
-                    ImGuiTreeNodeFlags_Leaf, 
-                    "%s: %s", 
-                    BehaviorTypeToString(node->behavior->type),
-                    BehaviorStateToString(instance->state)))
-        {
-            ImGui::TreePop();
-        }
-    }
-    else
-    {
-        if(ImGuiTreeNodeColored(id, 
-                    color, 
-                    0, 
-                    "%s: %s",
-                    node->type==BehaviorNodeType_Selector ? "selector" : "sequence",
-                    BehaviorStateToString(instance->state)))
-        {
-            for(int child_idx = 0;
-                    child_idx < node->children.size;
-                    child_idx++)
-            {
-                Behavior_Node *child = node->children[child_idx];
-                ImGuiBehaviorNode(world, agent, child);
-            }
-            ImGui::TreePop();
-        }
-    }
-}
 

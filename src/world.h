@@ -12,16 +12,19 @@ enum Entity_Flag
 struct Brain
 {
     Entity *selected[1];
+    Behavior_Tree_Instance *behavior;
 };
 
 struct Entity
 {
+    Vec3 pos;
+    R32 radius;
+
     Entity_Type type;
     U32 flags;
     bool is_removed;
 
     Brain *brain;
-    Behavior_Tree_Instance *behavior;
 };
 
 #define ChunkAt(world, x, y) (world)->chunks[(x)+(y)*(world)->x_chunks]
@@ -48,5 +51,12 @@ struct World
     int x_size;
     int y_size;
     int z_size;
+
+    // Perlin noise generation
+    fnl_state noise_state;
+    R32 magnitude;
+    R32 water_level;
+    R32 mid_level;
+    R32 scale;
 };
 
