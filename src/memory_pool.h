@@ -46,7 +46,7 @@ struct Memory_Pool
 
     void Free(void *element)
     {
-        ssize_t diff = (ssize_t)((ssize_t)element-(ssize_t)data);
+        int64_t diff = (int64_t)((int64_t)element-(int64_t)data);
         int idx = (int)(diff/slot_size);
         printf(__FILE__ " Free idx = %d\n", idx);
         Assert(idx >= 0 && idx < capacity);
@@ -60,7 +60,7 @@ Memory_Pool *
 PushMemoryPool(Memory_Arena *arena, int capacity, size_t element_size)
 {
     Memory_Pool *pool = PushStruct(arena, Memory_Pool);
-    *pool = (Memory_Pool){0};
+    *pool = {0};
     pool->slot_size = element_size;
     pool->capacity = capacity;
     pool->used_slots = PushZeroArray(arena, bool, capacity);

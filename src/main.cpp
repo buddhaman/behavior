@@ -1,8 +1,10 @@
 
 #include <thread>
 
-#include <SDL2/SDL.h>
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
 #include "external_libs.h"
+#include "external_libs.cpp"
 
 // TODO: Move to external? 
 #define FNL_IMPL
@@ -121,7 +123,7 @@ main(int argc, char **argv)
 
     // Custom rendering init
 
-    Memory_Arena *arena = CreateMemoryArena(1024L*1024L*512L);
+    Memory_Arena *arena = CreateMemoryArena(1024L*1024L*1024L);
 
     Shader *chunk_shader = CreateShaderProgram(arena, 
             "assets/chunk_shader.vert", "assets/solid.frag");
@@ -135,7 +137,7 @@ main(int argc, char **argv)
     Input *input = PushZeroStruct(arena, Input);
 
     World *world = PushZeroStruct(arena, World);
-    InitWorld(arena, world, 8, 8);
+    InitWorld(arena, world, 16, 16);
 
     Camera3 *cam = PushZeroStruct(arena, Camera3);
     cam->phi = -M_PI/4.0f;

@@ -27,9 +27,9 @@ Memory_Arena *
 CreateMemoryArena(size_t size)
 {
     Memory_Arena *arena = (Memory_Arena *)malloc(sizeof(Memory_Arena)+size);
-    *arena = (Memory_Arena){0};
     arena->base = (uint8_t *)(arena+1);
     arena->size = size;
+    arena->used = 0;
     return arena;
 }
 

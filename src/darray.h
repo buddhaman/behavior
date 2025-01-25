@@ -53,9 +53,10 @@ struct DArray
 template <typename T> DArray<T> 
 CreateDArray(Memory_Arena *arena, int capacity)
 {
-    DArray<T> array = {0};
+    DArray<T> array;
     array.capacity = capacity;
     array.data = PushArray(arena, T, capacity);
+    array.size = 0;
     return array;
 }
 
@@ -63,9 +64,9 @@ template <typename T> DArray<T> *
 PushDArray(Memory_Arena *arena, int capacity)
 {
     DArray<T> *array = PushStruct(arena, DArray<T>);
-    *array = (DArray<T>){0};
     array->capacity = capacity;
     array->data = PushArray(arena, T, capacity);
+    array->size = 0;
     return array;
 }
 
@@ -73,9 +74,9 @@ template <typename T> DArray<T> *
 CreateDArrayMalloc(int capacity)
 {
     DArray<T> *array = (DArray<T> *)malloc(sizeof(DArray<T>) + sizeof(T)*capacity);
-    *array = (DArray<T>){};
     array->capacity = capacity;
     array->data = (T *)(array+1);
+    array->size = 0;
     return array;
 }
 
@@ -83,9 +84,9 @@ template <typename T> DArray<T> *
 CreateDArrayFromMemory(void *memory, int capacity)
 {
     DArray<T> *array = (DArray<T> *)memory;
-    *array = (DArray<T>){};
     array->capacity = capacity;
     array->data = (T *)(array+1);
+    array->size = 0;
     return array;
 }
 

@@ -18,7 +18,7 @@ enum Behavior_Type
     BehaviorType_WalkTo = 0,
 };
 
-char *
+const char *
 BehaviorTypeToString(Behavior_Type type)
 {
     switch(type)
@@ -35,7 +35,7 @@ enum Behavior_State
     BehaviorState_Succeeded,
 };
 
-char *
+const char *
 BehaviorStateToString(Behavior_State state)
 {
     switch(state)

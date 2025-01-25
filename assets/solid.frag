@@ -15,4 +15,3 @@ void main()
     vec3 light_color = v_color.rgb*light_factor;
     color = vec4(light_color, 1.0);
 }
-

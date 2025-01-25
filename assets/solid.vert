@@ -17,4 +17,3 @@ void main()
     gl_Position = transform * model * vec4(pos, 1.0);
 }
 
-

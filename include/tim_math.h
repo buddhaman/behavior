@@ -176,57 +176,56 @@ static inline Mat4 M4Mul          (Mat4 a, Mat4 b);
 static inline Vec2
 V2(float x, float y)
 {
-    return (Vec2){{x, y}};
+    return {x, y};
 }
 
 static inline Vec2  
 V2Add(Vec2 a, Vec2 b)    
 { 
-    return (Vec2){{a.x+b.x, a.y+b.y}};
+    return V2(a.x+b.x, a.y+b.y);
 }
 
 static inline Vec2  
 V2Sub(Vec2 a, Vec2 b)    
 {
-    return (Vec2){{a.x-b.x, a.y-b.y}};
+    return V2(a.x-b.x, a.y-b.y);
 }
 
 static inline Vec2  
 V2Mul(Vec2 a, Vec2 b)    
 { 
-    return (Vec2){{a.x*b.x, a.y*b.y}};
+    return V2(a.x*b.x, a.y*b.y);
 }
 
 static inline Vec2
 V2Div(Vec2 a, Vec2 b)
 {
-    return (Vec2){{a.x/b.x, a.y/b.y}};
+    return V2(a.x/b.x, a.y/b.y);
 }
 
 static inline Vec2  
 V2AddS(Vec2 a, float s)    
 { 
-    return (Vec2){{a.x+s, a.y+s}};
+    return V2(a.x+s, a.y+s);
 }
 
 static inline Vec2  
 V2SubS(Vec2 a, float s)    
 { 
-    return (Vec2){{a.x-s, a.y-s}};
+    return V2(a.x-s, a.y-s);
 }
 
 static inline Vec2  
 V2MulS(Vec2 a, float s)    
 { 
-    return (Vec2){{a.x*s, a.y*s}};
+    return V2(a.x*s, a.y*s);
 }
 
 static inline Vec2  
 V2DivS(Vec2 a, float s)    
 { 
-    return (Vec2){{a.x/s, a.y/s}};
+    return V2(a.x/s, a.y/s);
 }
-
 
 static inline float   
 V2Dot(Vec2 a, Vec2 b)    
@@ -368,68 +367,67 @@ V2FPrintP(FILE *stream, Vec2 v, int width, int precision)
 static inline Vec3 
 V3(float x, float y, float z) 
 { 
-    return (Vec3){{x, y, z}};
+    return {x, y, z};
 }
 
 static inline Vec3 
 V3(Vec2 v2, float z) 
 { 
-    return (Vec3){{v2.x, v2.y, z}};
+    return V3(v2.x, v2.y, z);
 }
 
 static inline Vec4 
 V4(float x, float y, float z, float w)
 { 
-    return (Vec4){{x, y, z, w}};
+    return {x, y, z, w};
 }
-
 
 static inline Vec3 
 V3Add(Vec3 a, Vec3 b)          
 { 
-    return (Vec3){{ a.x + b.x, a.y + b.y, a.z + b.z }};
+    return V3( a.x + b.x, a.y + b.y, a.z + b.z );
 }
 
 static inline Vec3 
 V3AddS(Vec3 a, float s)
 { 
-    return (Vec3){{ a.x + s,   a.y + s,   a.z + s }};
+    return V3( a.x + s,   a.y + s,   a.z + s );
 }
 
 static inline Vec3 
 V3Sub(Vec3 a, Vec3 b)
 { 
-    return (Vec3){{ a.x - b.x, a.y - b.y, a.z - b.z }};
+    return V3( a.x - b.x, a.y - b.y, a.z - b.z );
 }
 
 static inline Vec3 
 V3SubS(Vec3 a, float s)
 { 
-    return (Vec3){{ a.x - s, a.y - s, a.z - s}};
+    return V3( a.x - s, a.y - s, a.z - s);
 }
 
 static inline Vec3 
 V3Mul(Vec3 a, Vec3 b)          
 { 
-    return (Vec3){{a.x * b.x, a.y * b.y, a.z * b.z}};
+    return V3(a.x * b.x, a.y * b.y, a.z * b.z);
 }
 
 static inline Vec3 
 V3MulS(Vec3 a, float s)           
 { 
-    return (Vec3){{ a.x * s,   a.y * s,   a.z * s}};
+    return V3( a.x * s,   a.y * s,   a.z * s);
 }
 
 static inline Vec3 
 V3Div(Vec3 a, Vec3 b)
 { 
-    return (Vec3){{ a.x / b.x, a.y / b.y, a.z / b.z }}; 
+    return V3( a.x / b.x, a.y / b.y, a.z / b.z);
 }
 
 static inline Vec3 
 V3DivS(Vec3 a, float s)           
 { 
-    return (Vec3){{ a.x / s,   a.y / s,   a.z / s}};
+    return V3( a.x / s,   a.y / s,   a.z / s);
 }
 
 static inline float  
@@ -449,9 +447,9 @@ V3Norm(Vec3 v)
 {
 	float len = V3Len(v);
 	if (len > 0)
-		return (Vec3){{ v.x / len, v.y / len, v.z / len }};
+		return V3( v.x / len, v.y / len, v.z / len );
 	else
-		return (Vec3){{ 0, 0, 0}};
+		return V3( 0, 0, 0);
 }
 
 static inline Vec3 
@@ -463,11 +461,11 @@ V3Proj(Vec3 v, Vec3 onto)
 static inline Vec3 
 V3Cross(Vec3 a, Vec3 b) 
 {
-	return (Vec3){{
+	return {
 		a.y * b.z - a.z * b.y,
 		a.z * b.x - a.x * b.z,
 		a.x * b.y - a.y * b.x
-	}};
+	};
 }
 
 static inline float 

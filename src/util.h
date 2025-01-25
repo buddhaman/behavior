@@ -1,11 +1,11 @@
 
-#define DebugOut(args...) printf(args); printf("\n");
+#define DebugOut(...) do { printf(__VA_ARGS__); printf("\n"); } while (0)
 
 #define Assert(statement) if(!(statement)) \
-    {printf(__FILE__ ":%d Assert failed ("#statement")\n", __LINE__);__builtin_trap();}
+    {printf(__FILE__ ":%d Assert failed ("#statement")\n", __LINE__);DebugBreak();}
 
 #define InvalidCodePath\
-    {printf(__FILE__ ":%d  Invalid code path.\n", __LINE__);__builtin_trap();}
+    {printf(__FILE__ ":%d  Invalid code path.\n", __LINE__);DebugBreak();}
 
 #define ArraySize(array) \
     sizeof(array)/sizeof(array[0])
@@ -37,21 +37,36 @@ char *
 ReadEntireFile(const char *path)
 {
     FILE *file = fopen(path, "r");
-    if(file)
+    if (file)
     {
         fseek(file, 0, SEEK_END);
-        size_t size = ftell(file);
+        long size = ftell(file);
+        if (size == -1) // Check for ftell failure
+        {
+            fprintf(stderr, "Error determining file size: %s\n", path);
+            fclose(file);
+            return NULL;
+        }
         fseek(file, 0, SEEK_SET);
-        char *buffer = (char *)malloc(size+1);
-        fread(buffer, 1, size, file);
-        buffer[size] = 0;
+        
+        char *buffer = (char *)calloc(size + 1, 1);
+        if (!buffer)
+        {
+            fprintf(stderr, "Memory allocation failed for file: %s\n", path);
+            fclose(file);
+            return NULL;
+        }
+        
+        size_t read = fread(buffer, 1, size, file);
+        buffer[read] = '\0'; // Null-terminate the buffer
         fclose(file);
+
         return buffer;
     }
     else
     {
-        fprintf(stderr, "Cant open file %s.", path);
-        return 0;
+        fprintf(stderr, "Cannot open file: %s\n", path);
+        return NULL;
     }
 }
 

@@ -202,7 +202,7 @@ ImGuiBehaviorNode(World *world, Entity *agent, Behavior_Node *node)
         if(ImGuiTreeNodeColored(id, 
                     color, 
                     ImGuiTreeNodeFlags_Leaf, 
-                    "%s: %s", 
+                    const_cast<char*>("%s: %s"),
                     BehaviorTypeToString(node->behavior->type),
                     BehaviorStateToString(instance->state)))
         {
@@ -214,7 +214,7 @@ ImGuiBehaviorNode(World *world, Entity *agent, Behavior_Node *node)
         if(ImGuiTreeNodeColored(id, 
                     color, 
                     0, 
-                    "%s: %s",
+                    const_cast<char*>("%s: %s"),
                     node->type==BehaviorNodeType_Selector ? "selector" : "sequence",
                     BehaviorStateToString(instance->state)))
         {
